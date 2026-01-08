@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope // ВАЖНЫЙ ИМПОРТ
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -75,7 +76,7 @@ val AccentRed = Color(0xFFFF0000)
 
 // --- REPOSITORY: Добываем прямую ссылку на аудио ---
 object YouTubeRepository {
-    // Публичный API Piped (инстанс kavin.rocks или api.piped.video)
+    // Публичный API Piped
     private const val API_URL = "https://pipedapi.kavin.rocks/streams/"
 
     suspend fun getAudioStreamUrl(videoId: String): String? {
@@ -131,7 +132,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playAudio(videoId: String, onReady: (Boolean) -> Unit) {
-        androidx.lifecycle.lifecycleScope.launch {
+        // ИСПРАВЛЕНИЕ ЗДЕСЬ: используем lifecycleScope напрямую
+        lifecycleScope.launch {
             val streamUrl = YouTubeRepository.getAudioStreamUrl(videoId)
             if (streamUrl != null) {
                 try {
@@ -194,7 +196,7 @@ fun YTMusicCloneApp(
             if (success) {
                 isPlaying = true
             } else {
-                Toast.makeText(context, "Failed to load song. API might be busy.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Failed to load. API might be limited.", Toast.LENGTH_SHORT).show()
             }
         }
     }
