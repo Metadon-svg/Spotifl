@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ОБЯЗАТЕЛЬНО ДЛЯ КАРТИНОК И МУЗЫКИ -->
+    <!-- 1. РАЗРЕШЕНИЕ НА ИНТЕРНЕТ (Должно быть здесь) -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
@@ -10,9 +10,16 @@
         android:label="MyVibe Music"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        
+        <!-- 2. ИКОНКА (Которую мы создали ранее) -->
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
+        
+        <!-- 3. РАЗРЕШЕНИЕ ЛЮБЫХ ЗАГРУЗОК (Фикс для картинок) -->
+        android:usesCleartextTraffic="true"
+        
         tools:targetApi="31">
+        
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -23,4 +30,5 @@
             </intent-filter>
         </activity>
     </application>
+
 </manifest>
