@@ -2,15 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Интернет нужен для музыки и картинок -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:allowBackup="true"
-        android:label="My Spotify App"
+        android:label="MyVibe Music"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         tools:targetApi="31">
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
