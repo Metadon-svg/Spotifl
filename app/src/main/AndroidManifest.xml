@@ -7,13 +7,10 @@
         android:label="My Spotify App"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        
-        <!-- CHANGED LINES BELOW: Point to @drawable instead of @mipmap -->
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
-        
         tools:targetApi="31">
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
