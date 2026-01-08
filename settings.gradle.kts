@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MySpotifyLikeApp"
+rootProject.name = "MyVibeMusic"
 include(":app")
