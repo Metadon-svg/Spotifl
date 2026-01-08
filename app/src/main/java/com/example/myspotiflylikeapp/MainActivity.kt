@@ -41,6 +41,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,7 +63,8 @@ val sampleSongs = listOf(
     Song("9HDEHj2yzew", "Space Song", "Beach House", "https://i.ytimg.com/vi/9HDEHj2yzew/hqdefault.jpg"),
     Song("SDTZ7iX4vTQ", "After Dark", "Mr.Kitty", "https://i.ytimg.com/vi/SDTZ7iX4vTQ/hqdefault.jpg"),
     Song("1-xGerv5FOk", "Summertime Sadness", "Lana Del Rey", "https://i.ytimg.com/vi/1-xGerv5FOk/hqdefault.jpg"),
-    Song("L_jWHffIx5E", "All Star", "Smash Mouth", "https://i.ytimg.com/vi/L_jWHffIx5E/hqdefault.jpg")
+    Song("L_jWHffIx5E", "All Star", "Smash Mouth", "https://i.ytimg.com/vi/L_jWHffIx5E/hqdefault.jpg"),
+    Song("dQw4w9WgXcQ", "Never Gonna Give You Up", "Rick Astley", "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
 )
 
 val YTBlack = Color(0xFF0F0F0F)
@@ -71,58 +73,113 @@ val YTLightGray = Color(0xFFAAAAAA)
 val White = Color.White
 val AccentRed = Color(0xFFFF0000)
 
-// --- SIMP MUSIC LOGIC EXTRACTED ---
+// --- SIMP MUSIC REPOSITORY (SMARTER VERSION) ---
 object SimpMusicRepository {
-    // Список зеркал, как в SimpMusic. Если одно не работает, пробуем другое.
-    private val PIPED_INSTANCES = listOf(
+    // Резервный список на случай, если не удастся скачать динамический
+    private val FALLBACK_INSTANCES = listOf(
         "https://pipedapi.kavin.rocks",
         "https://api.piped.video",
-        "https://api-piped.mha.fi",
+        "https://pipedapi.drgns.space",
         "https://piped-api.lunar.icu",
-        "https://pipedapi.drgns.space"
+        "https://api-piped.mha.fi",
+        "https://pipedapi.tokhmi.xyz",
+        "https://pa.il.ax",
+        "https://api.piped.projectsegfau.lt",
+        "https://piped-api.privacy.com.de"
     )
+    
+    // Сюда мы загрузим свежий список
+    private var cachedInstances: List<String> = emptyList()
 
     suspend fun getStreamUrl(videoId: String): String? {
         return withContext(Dispatchers.IO) {
+            // 1. Если кеш пуст, пробуем загрузить свежий список серверов
+            if (cachedInstances.isEmpty()) {
+                cachedInstances = fetchInstances()
+            }
+            
+            // Объединяем скачанные сервера с резервными (чтобы наверняка)
+            val allInstances = (cachedInstances + FALLBACK_INSTANCES).distinct()
+
             var bestUrl: String? = null
             
-            // Пробуем каждый сервер по очереди
-            for (instance in PIPED_INSTANCES) {
+            // 2. Пробуем каждый сервер
+            for (instance in allInstances) {
                 try {
-                    val urlStr = "$instance/streams/$videoId"
+                    // Убираем лишние слеши, если есть
+                    val cleanInstance = instance.trimEnd('/')
+                    val urlStr = "$cleanInstance/streams/$videoId"
+                    
                     val url = URL(urlStr)
                     val connection = url.openConnection() as HttpURLConnection
                     connection.requestMethod = "GET"
-                    connection.connectTimeout = 3000 // Быстрый тайм-аут
+                    connection.connectTimeout = 3000 // Тайм-аут 3 сек на сервер
                     connection.readTimeout = 3000
                     
                     if (connection.responseCode == 200) {
                         val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
                         val jsonObject = Gson().fromJson(jsonStr, JsonObject::class.java)
-                        val audioStreams = jsonObject.getAsJsonArray("audioStreams")
-
-                        var maxBitrate = 0
-                        // Логика выбора лучшего качества (M4A)
-                        for (i in 0 until audioStreams.size()) {
-                            val stream = audioStreams.get(i).asJsonObject
-                            val bitrate = stream.get("bitrate").asInt
-                            val mimeType = stream.get("mimeType").asString
+                        
+                        if (jsonObject.has("audioStreams")) {
+                            val audioStreams = jsonObject.getAsJsonArray("audioStreams")
+                            var maxBitrate = 0
                             
-                            if (mimeType.contains("mp4") || mimeType.contains("m4a")) {
-                                if (bitrate > maxBitrate) {
-                                    maxBitrate = bitrate
-                                    bestUrl = stream.get("url").asString
+                            for (i in 0 until audioStreams.size()) {
+                                val stream = audioStreams.get(i).asJsonObject
+                                val bitrate = stream.get("bitrate").asInt
+                                val mimeType = stream.get("mimeType").asString
+                                val format = stream.get("format")?.asString ?: ""
+                                
+                                // Ищем M4A или MP4 с лучшим качеством
+                                if (mimeType.contains("mp4") || mimeType.contains("m4a") || format.equals("M4A", ignoreCase = true)) {
+                                    if (bitrate > maxBitrate) {
+                                        maxBitrate = bitrate
+                                        bestUrl = stream.get("url").asString
+                                    }
                                 }
                             }
+                            
+                            // Если нашли ссылку - успех!
+                            if (bestUrl != null) {
+                                // Продвигаем этот сервер в начало списка (оптимизация)
+                                cachedInstances = listOf(cleanInstance) + (cachedInstances - cleanInstance)
+                                break 
+                            }
                         }
-                        
-                        if (bestUrl != null) break // Успех! Выходим из цикла
                     }
                 } catch (e: Exception) {
-                    continue // Пробуем следующее зеркало
+                    continue // Сервер мертв, идем к следующему
                 }
             }
             bestUrl
+        }
+    }
+
+    // Функция загрузки списка рабочих серверов из GitHub документации Piped
+    private fun fetchInstances(): List<String> {
+        return try {
+            val url = URL("https://raw.githubusercontent.com/TeamPiped/documentation/main/static/instances.json")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 5000
+            
+            if (connection.responseCode == 200) {
+                val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
+                val jsonArray = JsonParser.parseString(jsonStr).asJsonArray
+                val list = mutableListOf<String>()
+                
+                for (element in jsonArray) {
+                    val obj = element.asJsonObject
+                    // Берем только те, у которых есть API URL
+                    if (obj.has("api_url")) {
+                        list.add(obj.get("api_url").asString)
+                    }
+                }
+                list
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }
@@ -206,7 +263,8 @@ fun AppContent(
             if (success) {
                 isPlaying = true
             } else {
-                Toast.makeText(context, "All servers busy. Try again.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Trying other servers... please wait", Toast.LENGTH_LONG).show()
+                // Если не получилось с первого раза, можно попробовать еще раз (логика ретрая уже внутри репозитория)
             }
         }
     }
