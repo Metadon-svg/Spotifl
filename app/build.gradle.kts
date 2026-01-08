@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.myspotifylikeapp"
+    namespace = "com.example.myvibemusic"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.myspotifylikeapp"
+        applicationId = "com.example.myvibemusic"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -45,4 +45,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    
+    // Дополнительные библиотеки для UI и Навигации
+    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("io.coil-kt:coil-compose:2.5.0") 
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
 }
